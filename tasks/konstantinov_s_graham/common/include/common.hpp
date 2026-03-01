@@ -7,8 +7,8 @@
 
 namespace konstantinov_s_graham {
 
-using InType = std::pair<std::vector<double>,std::vector<double>>;
-using OutType = std::vector<std::pair<double,double>>;
+using InType = std::pair<std::vector<double>, std::vector<double>>;
+using OutType = std::vector<std::pair<double, double>>;
 using TestType = std::tuple<InType, OutType>;
 using BaseTask = ppc::task::Task<InType, OutType>;
 

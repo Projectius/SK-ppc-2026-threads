@@ -24,10 +24,9 @@ class KonstantinovAGrahamSEQ : public BaseTask {
                                                size_t anchor_idx);
   bool all_collinear_with_anchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t anchor_idx,
                                  const std::vector<size_t> &sorted_idxs);
-std::vector<std::pair<double,double>> build_hull_from_sorted(const std::vector<double> &xs,
-                                                             const std::vector<double> &ys,
-                                                             size_t anchor_idx,
-                                                             const std::vector<size_t> &sorted_idxs);                                 
+  std::vector<std::pair<double, double>> build_hull_from_sorted(const std::vector<double> &xs,
+                                                                const std::vector<double> &ys, size_t anchor_idx,
+                                                                const std::vector<size_t> &sorted_idxs);
   bool RunImpl() override;
   bool PostProcessingImpl() override;
 };
