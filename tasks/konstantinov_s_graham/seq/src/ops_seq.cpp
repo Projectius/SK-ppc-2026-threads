@@ -162,6 +162,8 @@ std::vector<std::pair<double,double>> KonstantinovAGrahamSEQ::build_hull_from_so
 
 bool KonstantinovAGrahamSEQ::RunImpl() {
 
+  std::cout<<"START\n";
+
   const InType& inp = GetInput();
   auto xs = inp.first;
   auto ys = inp.second;

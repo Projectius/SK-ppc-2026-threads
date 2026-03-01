@@ -11,12 +11,33 @@
 namespace konstantinov_s_graham {
 
 class KonstantinovSRunPerfTestsThreads : public ppc::util::BaseRunPerfTests<InType, OutType> {
-  const int kCount_ = 200;
   InType test_input_;
   OutType test_expected_output_;
 
   void SetUp() override {
-    //input_data_ = kCount_;
+    const unsigned long long duplcount = 10000000;
+    const unsigned long long seedcount = 5;
+    double seedx[] = {-0.1, -0.2, -0.05, 0.1, 0.05};
+    double seedy[] = {-0.1, 0.1, 0.3, 0.1, -0.3}; // -0.1_-0.1 -0.2_0.1 -0.05_0.3 0.1_0.1 0.05_-0.3
+    double mult = 1.0;
+    test_input_.first.resize(seedcount*duplcount);
+    test_input_.second.resize(seedcount*duplcount);
+    for(int i=0; i<duplcount; i++)
+    {
+      for(int j=0; j<seedcount; j++)
+      {
+        test_input_.first[j] = seedx[j]*mult;
+        test_input_.second[j] = seedy[j]*mult;
+      }
+      mult+=1;
+    }
+    test_expected_output_.resize(seedcount);
+    for(int j=0; j<seedcount; j++)
+      {
+        test_expected_output_[j] = {seedx[j]*mult, seedy[j]*mult};
+        std::cout<<seedx[j]*mult << " "<< seedy[j]*mult<<"\n";
+      }
+
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
