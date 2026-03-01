@@ -8,22 +8,23 @@
 //#include "konstantinov_s_graham/tbb/include/ops_tbb.hpp"
 #include "util/include/perf_test_util.hpp"
 
-namespace konstantinov_a_graham {
+namespace konstantinov_s_graham {
 
 class KonstantinovSRunPerfTestsThreads : public ppc::util::BaseRunPerfTests<InType, OutType> {
   const int kCount_ = 200;
-  InType input_data_{};
+  InType test_input_;
+  OutType test_expected_output_;
 
   void SetUp() override {
-    input_data_ = kCount_;
+    //input_data_ = kCount_;
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
-    return input_data_ == output_data;
+    return output_data==test_expected_output_;
   }
 
   InType GetTestInputData() final {
-    return input_data_;
+    return test_input_;
   }
 };
 
@@ -45,4 +46,4 @@ INSTANTIATE_TEST_SUITE_P(RunModeTests, KonstantinovSRunPerfTestsThreads, kGtestV
 
 }  // namespace
 
-}  // namespace konstantinov_a_graham
+}  // namespace konstantinov_s_graham
