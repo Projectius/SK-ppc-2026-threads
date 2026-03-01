@@ -77,7 +77,7 @@ double KonstantinovAGrahamSEQ::CrossVal(const std::vector<double> &xs, const std
   const double ay = ys[j] - ys[i];
   const double bx = xs[k] - xs[i];
   const double by = ys[k] - ys[i];
-  return ax * by - ay * bx;
+  return (ax * by) - (ay * bx);
 }
 
 std::vector<size_t> KonstantinovAGrahamSEQ::CollectAndSortIndices(const std::vector<double> &xs,

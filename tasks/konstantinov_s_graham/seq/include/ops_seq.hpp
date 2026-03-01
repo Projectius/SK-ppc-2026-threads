@@ -1,4 +1,6 @@
 #pragma once
+#include <cstddef>
+#include <utility>
 
 #include "konstantinov_s_graham/common/include/common.hpp"
 #include "task/include/task.hpp"
@@ -19,7 +21,7 @@ class KonstantinovAGrahamSEQ : public BaseTask {
   static void RemoveDuplicates(std::vector<double> &xs, std::vector<double> &ys);
   static size_t FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys);
   static double Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j);
-  double CrossVal(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j, size_t k);
+  static double CrossVal(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j, size_t k);
   std::vector<size_t> CollectAndSortIndices(const std::vector<double> &xs, const std::vector<double> &ys,
                                             size_t anchor_idx);
   bool AllCollinearWithAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t anchor_idx,
