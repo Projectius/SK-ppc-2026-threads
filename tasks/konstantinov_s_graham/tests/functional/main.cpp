@@ -1,15 +1,15 @@
 #include <gtest/gtest.h>
 #include <stb/stb_image.h>
 
-#include <algorithm>
+// #include <algorithm>
 #include <array>
 #include <cstddef>
-#include <cstdint>
-#include <numeric>
-#include <stdexcept>
+// #include <cstdint>
+// #include <numeric>
+// #include <stdexcept>
 #include <string>
 #include <tuple>
-#include <utility>
+// #include <utility>
 #include <vector>
 
 // #include "konstantinov_s_graham/all/include/ops_all.hpp"
@@ -38,18 +38,19 @@ class KonstantinovSRunFuncTestsThreads : public ppc::util::BaseRunFuncTests<InTy
 
   bool CheckTestOutputData(OutType &output_data) final {
     // std::cout<<std::endl;
-    if (output_data.size() != test_expected_output_.size()) {
-      // std::cout<<"AAAAA "<<output_data.size()<<"out< >ans "<<test_expected_output_.size()<<std::endl;
-      // return false;
-    }
-    for (int i = 0; (i < std::max(output_data.size(), test_expected_output_.size())) && (output_data.size() > 0); i++) {
-      // if (i < output_data.size()) {
-      //  std::cout<<output_data[i].first << " " << output_data[i].second;
-      //  std::cout<< " -- ";
-      // if (test_expected_output_.size()) }
-      // std::cout << test_expected_output_[i].first<< " "<<test_expected_output_[i].second;
-      // std::cout<<std::endl;
-    }
+    // if (output_data.size() != test_expected_output_.size()) {
+    //   // std::cout<<"AAAAA "<<output_data.size()<<"out< >ans "<<test_expected_output_.size()<<std::endl;
+    //   // return false;
+    // }
+    // for (int i = 0; (i < std::max(output_data.size(), test_expected_output_.size())) && (output_data.size() > 0);
+    // i++) {
+    //   // if (i < output_data.size()) {
+    //   //  std::cout<<output_data[i].first << " " << output_data[i].second;
+    //   //  std::cout<< " -- ";
+    //   // if (test_expected_output_.size()) }
+    //   // std::cout << test_expected_output_[i].first<< " "<<test_expected_output_[i].second;
+    //   // std::cout<<std::endl;
+    // }
 
     return test_expected_output_ == output_data;
   }

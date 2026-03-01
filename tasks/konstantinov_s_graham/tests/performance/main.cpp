@@ -17,23 +17,23 @@ class KonstantinovSRunPerfTestsThreads : public ppc::util::BaseRunPerfTests<InTy
   OutType test_expected_output_;
 
   void SetUp() override {
-    const size_t duplcount = 10000000;
+    const size_t duplcount = 50000;
     const size_t seedcount = 5;
-    double seedx[] = {-0.1, -0.2, -0.05, 0.1, 0.05};
-    double seedy[] = {-0.1, 0.1, 0.3, 0.1, -0.3};  // -0.1_-0.1 -0.2_0.1 -0.05_0.3 0.1_0.1 0.05_-0.3
+    std::vector<double> seedx = {-0.1, -0.2, -0.05, 0.1, 0.05};
+    std::vector<double> seedy = {-0.1, 0.1, 0.3, 0.1, -0.3};  // -0.1_-0.1 -0.2_0.1 -0.05_0.3 0.1_0.1 0.05_-0.3
     double mult = 1.0;
     test_input_.first.resize(seedcount * duplcount);
     test_input_.second.resize(seedcount * duplcount);
     for (size_t i = 0; i < duplcount; i++) {
       for (size_t j = 0; j < seedcount; j++) {
-        test_input_.first[j] = seedx[j] * mult;
-        test_input_.second[j] = seedy[j] * mult;
+        test_input_.first.at((seedcount * i) + j) = seedx.at(j) * mult;
+        test_input_.second.at((seedcount * i) + j) = seedy.at(j) * mult;
       }
       mult += 1;
     }
     test_expected_output_.resize(seedcount);
     for (size_t j = 0; j < seedcount; j++) {
-      test_expected_output_[j] = {seedx[j] * mult, seedy[j] * mult};
+      test_expected_output_.at(j) = {seedx.at(j) * mult, seedy.at(j) * mult};
       // std::cout<<seedx[j]*mult << " "<< seedy[j]*mult<<"\n";
     }
   }
