@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <cstddef>
+
 // #include "konstantinov_s_graham/all/include/ops_all.hpp"
 #include "konstantinov_s_graham/common/include/common.hpp"
 // #include "konstantinov_s_graham/omp/include/ops_omp.hpp"
