@@ -15,22 +15,22 @@ class KonstantinovSRunPerfTestsThreads : public ppc::util::BaseRunPerfTests<InTy
   OutType test_expected_output_;
 
   void SetUp() override {
-    const unsigned long long duplcount = 10000000;
-    const unsigned long long seedcount = 5;
+    const size_t duplcount = 10000000;
+    const size_t seedcount = 5;
     double seedx[] = {-0.1, -0.2, -0.05, 0.1, 0.05};
     double seedy[] = {-0.1, 0.1, 0.3, 0.1, -0.3};  // -0.1_-0.1 -0.2_0.1 -0.05_0.3 0.1_0.1 0.05_-0.3
     double mult = 1.0;
     test_input_.first.resize(seedcount * duplcount);
     test_input_.second.resize(seedcount * duplcount);
-    for (int i = 0; i < duplcount; i++) {
-      for (int j = 0; j < seedcount; j++) {
+    for (size_t i = 0; i < duplcount; i++) {
+      for (size_t j = 0; j < seedcount; j++) {
         test_input_.first[j] = seedx[j] * mult;
         test_input_.second[j] = seedy[j] * mult;
       }
       mult += 1;
     }
     test_expected_output_.resize(seedcount);
-    for (int j = 0; j < seedcount; j++) {
+    for (size_t j = 0; j < seedcount; j++) {
       test_expected_output_[j] = {seedx[j] * mult, seedy[j] * mult};
       // std::cout<<seedx[j]*mult << " "<< seedy[j]*mult<<"\n";
     }
