@@ -1,6 +1,5 @@
 #include "konstantinov_s_graham/omp/include/ops_omp.hpp"
 
-// #include <numeric>
 #include <omp.h>
 
 #include <algorithm>
@@ -10,14 +9,12 @@
 #include <vector>
 
 #include "konstantinov_s_graham/common/include/common.hpp"
-// #include "util/include/util.hpp"
 
 namespace konstantinov_s_graham {
 
 KonstantinovAGrahamOMP::KonstantinovAGrahamOMP(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
-  // GetOutput() = 0;
 }
 
 bool KonstantinovAGrahamOMP::ValidationImpl() {
@@ -59,14 +56,15 @@ void KonstantinovAGrahamOMP::RemoveDuplicates(std::vector<double> &xs, std::vect
 
 size_t KonstantinovAGrahamOMP::FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys) {
   size_t idx = 0;
-#pragma omp parallel
+#pragma omp parallel default(none) shared(xs, ys, idx)
   {
     size_t local_idx = idx;
 
 #pragma omp for nowait
-    for (int i = 1; i < static_cast<int>(xs.size()); ++i) {
-      if (ys[i] < ys[local_idx] - kKEps || (std::abs(ys[i] - ys[local_idx]) < kKEps && xs[i] < xs[local_idx] - kKEps)) {
-        local_idx = static_cast<size_t>(i);
+    for (size_t i = 1; i < xs.size(); ++i) {
+      if (ys[i] < ys[local_idx] - kKEps ||
+          (std::abs(ys[i] - ys[local_idx]) < kKEps && xs[i] < xs[local_idx] - kKEps)) {
+        local_idx = i;
       }
     }
 
@@ -100,12 +98,12 @@ double KonstantinovAGrahamOMP::CrossVal(const std::vector<double> &xs, const std
 std::vector<size_t> KonstantinovAGrahamOMP::CollectAndSortIndices(const std::vector<double> &xs,
                                                                   const std::vector<double> &ys, size_t anchor_idx) {
   std::vector<size_t> idxs(xs.size() - 1);
-#pragma omp parallel for
-  for (int i = 0; i < static_cast<int>(xs.size()); ++i) {
-    if (static_cast<size_t>(i) < anchor_idx) {
-      idxs[i] = static_cast<size_t>(i);
-    } else if (static_cast<size_t>(i) > anchor_idx) {
-      idxs[i - 1] = static_cast<size_t>(i);
+#pragma omp parallel for default(none) shared(xs, idxs, anchor_idx)
+  for (size_t i = 0; i < xs.size(); ++i) {
+    if (i < anchor_idx) {
+      idxs[i] = i;
+    } else if (i > anchor_idx) {
+      idxs[i - 1] = i;
     }
   }
 
@@ -129,8 +127,8 @@ bool KonstantinovAGrahamOMP::AllCollinearWithAnchor(const std::vector<double> &x
   }
 
   bool result = true;
-#pragma omp parallel for
-  for (int i = 1; i < static_cast<int>(sorted_idxs.size()); ++i) {
+#pragma omp parallel for default(none) shared(xs, ys, sorted_idxs, anchor_idx, result)
+  for (size_t i = 1; i < sorted_idxs.size(); ++i) {
     if (std::abs(CrossVal(xs, ys, anchor_idx, sorted_idxs[0], sorted_idxs[i])) > kKEps) {
 #pragma omp atomic write
       result = false;
@@ -174,8 +172,6 @@ std::vector<std::pair<double, double>> KonstantinovAGrahamOMP::BuildHullFromSort
 }
 
 bool KonstantinovAGrahamOMP::RunImpl() {
-  // std::cout<<"START\n";
-
   const InType &inp = GetInput();
   auto xs = inp.first;
   auto ys = inp.second;
@@ -218,4 +214,4 @@ bool KonstantinovAGrahamOMP::PostProcessingImpl() {
   return true;
 }
 
-}  // namespace konstantinov_s_graham
+}
