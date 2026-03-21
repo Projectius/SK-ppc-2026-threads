@@ -62,8 +62,7 @@ size_t KonstantinovAGrahamOMP::FindAnchorIndex(const std::vector<double> &xs, co
 
 #pragma omp for nowait
     for (size_t i = 1; i < xs.size(); ++i) {
-      if (ys[i] < ys[local_idx] - kKEps ||
-          (std::abs(ys[i] - ys[local_idx]) < kKEps && xs[i] < xs[local_idx] - kKEps)) {
+      if (ys[i] < ys[local_idx] - kKEps || (std::abs(ys[i] - ys[local_idx]) < kKEps && xs[i] < xs[local_idx] - kKEps)) {
         local_idx = i;
       }
     }
@@ -214,4 +213,4 @@ bool KonstantinovAGrahamOMP::PostProcessingImpl() {
   return true;
 }
 
-}
+}  // namespace konstantinov_s_graham
