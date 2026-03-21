@@ -100,7 +100,7 @@ const std::array<TestType, 10> kTestParam = {
         OutType{{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}})};
 
 const auto kTestTasksList = std::tuple_cat(
-  ppc::util::AddFuncTask<KonstantinovAGrahamSEQ, InType>(kTestParam, PPC_SETTINGS_konstantinov_s_graham),
+    ppc::util::AddFuncTask<KonstantinovAGrahamSEQ, InType>(kTestParam, PPC_SETTINGS_konstantinov_s_graham),
     ppc::util::AddFuncTask<KonstantinovAGrahamOMP, InType>(kTestParam, PPC_SETTINGS_konstantinov_s_graham));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);

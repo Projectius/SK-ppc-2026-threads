@@ -52,9 +52,9 @@ TEST_P(KonstantinovSRunPerfTestsThreads, RunPerfModes) {
 
 namespace {
 
-const auto kAllPerfTasks = std::tuple_cat(
-  ppc::util::MakeAllPerfTasks<InType, KonstantinovAGrahamOMP>(PPC_SETTINGS_konstantinov_s_graham),
-    ppc::util::MakeAllPerfTasks<InType, KonstantinovAGrahamSEQ>(PPC_SETTINGS_konstantinov_s_graham));
+const auto kAllPerfTasks =
+    std::tuple_cat(ppc::util::MakeAllPerfTasks<InType, KonstantinovAGrahamOMP>(PPC_SETTINGS_konstantinov_s_graham),
+                   ppc::util::MakeAllPerfTasks<InType, KonstantinovAGrahamSEQ>(PPC_SETTINGS_konstantinov_s_graham));
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 

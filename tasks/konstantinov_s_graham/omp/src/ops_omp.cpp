@@ -1,12 +1,13 @@
 #include "konstantinov_s_graham/omp/include/ops_omp.hpp"
 
 // #include <numeric>
+#include <omp.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <ranges>
 #include <utility>
 #include <vector>
-#include <omp.h>
 
 #include "konstantinov_s_graham/common/include/common.hpp"
 // #include "util/include/util.hpp"
@@ -64,8 +65,7 @@ size_t KonstantinovAGrahamOMP::FindAnchorIndex(const std::vector<double> &xs, co
 
 #pragma omp for nowait
     for (int i = 1; i < static_cast<int>(xs.size()); ++i) {
-      if (ys[i] < ys[local_idx] - kKEps ||
-          (std::abs(ys[i] - ys[local_idx]) < kKEps && xs[i] < xs[local_idx] - kKEps)) {
+      if (ys[i] < ys[local_idx] - kKEps || (std::abs(ys[i] - ys[local_idx]) < kKEps && xs[i] < xs[local_idx] - kKEps)) {
         local_idx = static_cast<size_t>(i);
       }
     }
@@ -98,8 +98,7 @@ double KonstantinovAGrahamOMP::CrossVal(const std::vector<double> &xs, const std
 }
 
 std::vector<size_t> KonstantinovAGrahamOMP::CollectAndSortIndices(const std::vector<double> &xs,
-                                                                  const std::vector<double> &ys,
-                                                                  size_t anchor_idx) {
+                                                                  const std::vector<double> &ys, size_t anchor_idx) {
   std::vector<size_t> idxs(xs.size() - 1);
 #pragma omp parallel for
   for (int i = 0; i < static_cast<int>(xs.size()); ++i) {
@@ -123,11 +122,11 @@ std::vector<size_t> KonstantinovAGrahamOMP::CollectAndSortIndices(const std::vec
   return idxs;
 }
 
-bool KonstantinovAGrahamOMP::AllCollinearWithAnchor(const std::vector<double> &xs,
-                                                    const std::vector<double> &ys,
-                                                    size_t anchor_idx,
-                                                    const std::vector<size_t> &sorted_idxs) {
-  if (sorted_idxs.empty()) return true;
+bool KonstantinovAGrahamOMP::AllCollinearWithAnchor(const std::vector<double> &xs, const std::vector<double> &ys,
+                                                    size_t anchor_idx, const std::vector<size_t> &sorted_idxs) {
+  if (sorted_idxs.empty()) {
+    return true;
+  }
 
   bool result = true;
 #pragma omp parallel for
@@ -140,7 +139,6 @@ bool KonstantinovAGrahamOMP::AllCollinearWithAnchor(const std::vector<double> &x
 
   return result;
 }
-
 
 std::vector<std::pair<double, double>> KonstantinovAGrahamOMP::BuildHullFromSorted(
     const std::vector<double> &xs, const std::vector<double> &ys, size_t anchor_idx,
