@@ -16,7 +16,8 @@
 
 namespace konstantinov_s_graham {
 
-bool KonstantinovAGrahamTBB::IsLowerAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t lhs, size_t rhs) {
+bool KonstantinovAGrahamTBB::IsLowerAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t lhs,
+                                           size_t rhs) {
   if (ys[lhs] < ys[rhs] - kKEps) {
     return true;
   }
@@ -26,7 +27,6 @@ bool KonstantinovAGrahamTBB::IsLowerAnchor(const std::vector<double> &xs, const 
   }
 
   return false;
-
 
 }  // namespace
 
@@ -74,23 +74,18 @@ void KonstantinovAGrahamTBB::RemoveDuplicates(std::vector<double> &xs, std::vect
 }
 
 size_t KonstantinovAGrahamTBB::FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys) {
-  return tbb::parallel_reduce(
-      tbb::blocked_range<size_t>(1, xs.size()), size_t{0},
-      [&xs, &ys](const tbb::blocked_range<size_t> &range, size_t local_idx) {
-        for (size_t i = range.begin(); i < range.end(); ++i) {
-          if (IsLowerAnchor(xs, ys, i, local_idx)) {
-            local_idx = i;
-          }
-        }
-        return local_idx;
-      },
-      [&xs, &ys](size_t left, size_t right) {
-        return IsLowerAnchor(xs, ys, left, right) ? left : right;
-      });
+  return tbb::parallel_reduce(tbb::blocked_range<size_t>(1, xs.size()), size_t{0},
+                              [&xs, &ys](const tbb::blocked_range<size_t> &range, size_t local_idx) {
+    for (size_t i = range.begin(); i < range.end(); ++i) {
+      if (IsLowerAnchor(xs, ys, i, local_idx)) {
+        local_idx = i;
+      }
+    }
+    return local_idx;
+  }, [&xs, &ys](size_t left, size_t right) { return IsLowerAnchor(xs, ys, left, right) ? left : right; });
 }
 
-double KonstantinovAGrahamTBB::Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i,
-                                     size_t j) {
+double KonstantinovAGrahamTBB::Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j) {
   const double dx = xs[j] - xs[i];
   const double dy = ys[j] - ys[i];
   return (dx * dx) + (dy * dy);
@@ -106,8 +101,7 @@ double KonstantinovAGrahamTBB::CrossVal(const std::vector<double> &xs, const std
 }
 
 std::vector<size_t> KonstantinovAGrahamTBB::CollectAndSortIndices(const std::vector<double> &xs,
-                                                                  const std::vector<double> &ys,
-                                                                  size_t anchor_idx) {
+                                                                  const std::vector<double> &ys, size_t anchor_idx) {
   std::vector<size_t> idxs(xs.size() - 1);
 
   tbb::parallel_for(tbb::blocked_range<size_t>(0, xs.size()), [&idxs, anchor_idx](const tbb::blocked_range<size_t> &r) {
@@ -139,19 +133,15 @@ bool KonstantinovAGrahamTBB::AllCollinearWithAnchor(const std::vector<double> &x
     return true;
   }
 
-  return tbb::parallel_reduce(
-      tbb::blocked_range<size_t>(1, sorted_idxs.size()), true,
-      [&xs, &ys, anchor_idx, &sorted_idxs](const tbb::blocked_range<size_t> &r, bool local_ok) {
-        for (size_t i = r.begin(); i < r.end() && local_ok; ++i) {
-          if (std::abs(CrossVal(xs, ys, anchor_idx, sorted_idxs[0], sorted_idxs[i])) > kKEps) {
-            local_ok = false;
-          }
-        }
-        return local_ok;
-      },
-      [](bool lhs, bool rhs) {
-        return lhs && rhs;
-      });
+  return tbb::parallel_reduce(tbb::blocked_range<size_t>(1, sorted_idxs.size()), true,
+                              [&xs, &ys, anchor_idx, &sorted_idxs](const tbb::blocked_range<size_t> &r, bool local_ok) {
+    for (size_t i = r.begin(); i < r.end() && local_ok; ++i) {
+      if (std::abs(CrossVal(xs, ys, anchor_idx, sorted_idxs[0], sorted_idxs[i])) > kKEps) {
+        local_ok = false;
+      }
+    }
+    return local_ok;
+  }, [](bool lhs, bool rhs) { return lhs && rhs; });
 }
 
 std::vector<std::pair<double, double>> KonstantinovAGrahamTBB::BuildHullFromSorted(

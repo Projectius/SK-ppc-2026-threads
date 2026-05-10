@@ -15,7 +15,7 @@ class KonstantinovAGrahamTBB : public BaseTask {
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
     return ppc::task::TypeOfTask::kTBB;
   }
-  
+
   explicit KonstantinovAGrahamTBB(const InType &in);
   static constexpr double kKEps = 1e-10;
 
