@@ -26,8 +26,7 @@ bool KonstantinovAGrahamTBB::IsLowerAnchor(const std::vector<double> &xs, const 
   }
 
   return false;
-
-}  // namespace
+}
 
 KonstantinovAGrahamTBB::KonstantinovAGrahamTBB(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
