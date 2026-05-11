@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "konstantinov_s_graham/common/include/common.hpp"
-#include "ops_tbb.hpp"
 
 namespace konstantinov_s_graham {
 
