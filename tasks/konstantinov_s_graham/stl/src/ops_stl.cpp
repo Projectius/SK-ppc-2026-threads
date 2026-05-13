@@ -12,7 +12,8 @@
 
 namespace konstantinov_s_graham {
 
-bool KonstantinovAGrahamSTL::IsLowerAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t lhs, size_t rhs) {
+bool KonstantinovAGrahamSTL::IsLowerAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t lhs,
+                                           size_t rhs) {
   if (ys[lhs] < ys[rhs] - kKEps) {
     return true;
   }
@@ -29,7 +30,8 @@ size_t KonstantinovAGrahamSTL::GetThreadCount(size_t n) {
   return std::min(hw, n);
 }
 
-size_t KonstantinovAGrahamSTL::FindLocalAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t begin, size_t end) {
+size_t KonstantinovAGrahamSTL::FindLocalAnchor(const std::vector<double> &xs, const std::vector<double> &ys,
+                                               size_t begin, size_t end) {
   size_t best = begin;
 
   for (size_t i = begin + 1; i < end; ++i) {

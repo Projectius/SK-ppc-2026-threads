@@ -8,7 +8,6 @@
 
 namespace konstantinov_s_graham {
 
-
 class KonstantinovAGrahamSTL : public BaseTask {
  public:
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
