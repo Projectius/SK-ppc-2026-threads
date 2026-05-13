@@ -8,21 +8,22 @@
 
 namespace konstantinov_s_graham {
 
-inline constexpr double kKEps = 1e-10;
 
-class KonstantinovAGrahamTBB : public BaseTask {
+class KonstantinovAGrahamSTL : public BaseTask {
  public:
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
-    return ppc::task::TypeOfTask::kTBB;
+    return ppc::task::TypeOfTask::kSTL;
   }
 
-  explicit KonstantinovAGrahamTBB(const InType &in);
+  explicit KonstantinovAGrahamSTL(const InType &in);
   static constexpr double kKEps = 1e-10;
 
  private:
   bool ValidationImpl() override;
   bool PreProcessingImpl() override;
   static bool IsLowerAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t lhs, size_t rhs);
+  static size_t GetThreadCount(size_t n);
+  static size_t FindLocalAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t begin, size_t end);
   static void RemoveDuplicates(std::vector<double> &xs, std::vector<double> &ys);
   static size_t FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys);
   static double Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j);

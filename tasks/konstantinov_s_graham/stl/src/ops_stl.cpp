@@ -1,13 +1,10 @@
-#include "konstantinov_s_graham/tbb/include/ops_tbb.hpp"
-
-#include <tbb/blocked_range.h>
-#include <tbb/parallel_for.h>
-#include <tbb/parallel_reduce.h>
+#include "konstantinov_s_graham/stl/include/ops_stl.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstddef>
-#include <ranges>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -15,8 +12,7 @@
 
 namespace konstantinov_s_graham {
 
-bool KonstantinovAGrahamTBB::IsLowerAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t lhs,
-                                           size_t rhs) {
+bool KonstantinovAGrahamSTL::IsLowerAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t lhs, size_t rhs) {
   if (ys[lhs] < ys[rhs] - kKEps) {
     return true;
   }
@@ -28,20 +24,37 @@ bool KonstantinovAGrahamTBB::IsLowerAnchor(const std::vector<double> &xs, const 
   return false;
 }
 
-KonstantinovAGrahamTBB::KonstantinovAGrahamTBB(const InType &in) {
+size_t KonstantinovAGrahamSTL::GetThreadCount(size_t n) {
+  const size_t hw = std::max<size_t>(1, static_cast<size_t>(std::thread::hardware_concurrency()));
+  return std::min(hw, n);
+}
+
+size_t KonstantinovAGrahamSTL::FindLocalAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t begin, size_t end) {
+  size_t best = begin;
+
+  for (size_t i = begin + 1; i < end; ++i) {
+    if (IsLowerAnchor(xs, ys, i, best)) {
+      best = i;
+    }
+  }
+
+  return best;
+}
+
+KonstantinovAGrahamSTL::KonstantinovAGrahamSTL(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
 }
 
-bool KonstantinovAGrahamTBB::ValidationImpl() {
+bool KonstantinovAGrahamSTL::ValidationImpl() {
   return GetInput().first.size() == GetInput().second.size();
 }
 
-bool KonstantinovAGrahamTBB::PreProcessingImpl() {
+bool KonstantinovAGrahamSTL::PreProcessingImpl() {
   return true;
 }
 
-void KonstantinovAGrahamTBB::RemoveDuplicates(std::vector<double> &xs, std::vector<double> &ys) {
+void KonstantinovAGrahamSTL::RemoveDuplicates(std::vector<double> &xs, std::vector<double> &ys) {
   std::vector<std::pair<double, double>> pts;
   pts.reserve(xs.size());
 
@@ -49,18 +62,18 @@ void KonstantinovAGrahamTBB::RemoveDuplicates(std::vector<double> &xs, std::vect
     pts.emplace_back(xs[i], ys[i]);
   }
 
-  std::ranges::sort(pts, [](const auto &a, const auto &b) {
+  std::sort(pts.begin(), pts.end(), [](const auto &a, const auto &b) {
     if (std::abs(a.first - b.first) > kKEps) {
       return a.first < b.first;
     }
     return a.second < b.second;
   });
 
-  const auto new_end = std::ranges::unique(pts, [](const auto &a, const auto &b) {
+  const auto new_end = std::unique(pts.begin(), pts.end(), [](const auto &a, const auto &b) {
     return std::abs(a.first - b.first) < kKEps && std::abs(a.second - b.second) < kKEps;
   });
 
-  pts.erase(new_end.begin(), pts.end());
+  pts.erase(new_end, pts.end());
 
   xs.resize(pts.size());
   ys.resize(pts.size());
@@ -71,25 +84,55 @@ void KonstantinovAGrahamTBB::RemoveDuplicates(std::vector<double> &xs, std::vect
   }
 }
 
-size_t KonstantinovAGrahamTBB::FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys) {
-  return tbb::parallel_reduce(tbb::blocked_range<size_t>(1, xs.size()), size_t{0},
-                              [&xs, &ys](const tbb::blocked_range<size_t> &range, size_t local_idx) {
-    for (size_t i = range.begin(); i < range.end(); ++i) {
-      if (IsLowerAnchor(xs, ys, i, local_idx)) {
-        local_idx = i;
-      }
+size_t KonstantinovAGrahamSTL::FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys) {
+  if (xs.empty()) {
+    return 0;
+  }
+
+  const size_t thread_count = GetThreadCount(xs.size());
+  if (thread_count <= 1 || xs.size() < thread_count * 2) {
+    return FindLocalAnchor(xs, ys, 0, xs.size());
+  }
+
+  std::vector<size_t> local_results(thread_count);
+  std::vector<std::thread> workers;
+  workers.reserve(thread_count);
+
+  const size_t block = (xs.size() + thread_count - 1) / thread_count;
+
+  for (size_t t = 0; t < thread_count; ++t) {
+    const size_t begin = t * block;
+    const size_t end = std::min(xs.size(), begin + block);
+
+    if (begin >= end) {
+      local_results[t] = 0;
+      continue;
     }
-    return local_idx;
-  }, [&xs, &ys](size_t left, size_t right) { return IsLowerAnchor(xs, ys, left, right) ? left : right; });
+
+    workers.emplace_back([&, t, begin, end]() { local_results[t] = FindLocalAnchor(xs, ys, begin, end); });
+  }
+
+  for (auto &worker : workers) {
+    worker.join();
+  }
+
+  size_t best = local_results[0];
+  for (size_t t = 1; t < thread_count; ++t) {
+    if (IsLowerAnchor(xs, ys, local_results[t], best)) {
+      best = local_results[t];
+    }
+  }
+
+  return best;
 }
 
-double KonstantinovAGrahamTBB::Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j) {
+double KonstantinovAGrahamSTL::Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j) {
   const double dx = xs[j] - xs[i];
   const double dy = ys[j] - ys[i];
   return (dx * dx) + (dy * dy);
 }
 
-double KonstantinovAGrahamTBB::CrossVal(const std::vector<double> &xs, const std::vector<double> &ys, size_t i,
+double KonstantinovAGrahamSTL::CrossVal(const std::vector<double> &xs, const std::vector<double> &ys, size_t i,
                                         size_t j, size_t k) {
   const double ax = xs[j] - xs[i];
   const double ay = ys[j] - ys[i];
@@ -98,21 +141,50 @@ double KonstantinovAGrahamTBB::CrossVal(const std::vector<double> &xs, const std
   return (ax * by) - (ay * bx);
 }
 
-std::vector<size_t> KonstantinovAGrahamTBB::CollectAndSortIndices(const std::vector<double> &xs,
+std::vector<size_t> KonstantinovAGrahamSTL::CollectAndSortIndices(const std::vector<double> &xs,
                                                                   const std::vector<double> &ys, size_t anchor_idx) {
   std::vector<size_t> idxs(xs.size() - 1);
 
-  tbb::parallel_for(tbb::blocked_range<size_t>(0, xs.size()), [&idxs, anchor_idx](const tbb::blocked_range<size_t> &r) {
-    for (size_t i = r.begin(); i < r.end(); ++i) {
+  const size_t thread_count = GetThreadCount(xs.size());
+  if (thread_count <= 1 || xs.size() < thread_count * 2) {
+    for (size_t i = 0; i < xs.size(); ++i) {
       if (i < anchor_idx) {
         idxs[i] = i;
       } else if (i > anchor_idx) {
         idxs[i - 1] = i;
       }
     }
-  });
+  } else {
+    std::vector<std::thread> workers;
+    workers.reserve(thread_count);
 
-  std::ranges::sort(idxs, [&xs, &ys, anchor_idx](size_t a, size_t b) {
+    const size_t block = (xs.size() + thread_count - 1) / thread_count;
+
+    for (size_t t = 0; t < thread_count; ++t) {
+      const size_t begin = t * block;
+      const size_t end = std::min(xs.size(), begin + block);
+
+      if (begin >= end) {
+        continue;
+      }
+
+      workers.emplace_back([&, begin, end]() {
+        for (size_t i = begin; i < end; ++i) {
+          if (i < anchor_idx) {
+            idxs[i] = i;
+          } else if (i > anchor_idx) {
+            idxs[i - 1] = i;
+          }
+        }
+      });
+    }
+
+    for (auto &worker : workers) {
+      worker.join();
+    }
+  }
+
+  std::sort(idxs.begin(), idxs.end(), [&xs, &ys, anchor_idx](size_t a, size_t b) {
     const double cr = CrossVal(xs, ys, anchor_idx, a, b);
 
     if (std::abs(cr) < kKEps) {
@@ -125,24 +197,54 @@ std::vector<size_t> KonstantinovAGrahamTBB::CollectAndSortIndices(const std::vec
   return idxs;
 }
 
-bool KonstantinovAGrahamTBB::AllCollinearWithAnchor(const std::vector<double> &xs, const std::vector<double> &ys,
+bool KonstantinovAGrahamSTL::AllCollinearWithAnchor(const std::vector<double> &xs, const std::vector<double> &ys,
                                                     size_t anchor_idx, const std::vector<size_t> &sorted_idxs) {
   if (sorted_idxs.empty()) {
     return true;
   }
 
-  return tbb::parallel_reduce(tbb::blocked_range<size_t>(1, sorted_idxs.size()), true,
-                              [&xs, &ys, anchor_idx, &sorted_idxs](const tbb::blocked_range<size_t> &r, bool local_ok) {
-    for (size_t i = r.begin(); i < r.end() && local_ok; ++i) {
+  const size_t thread_count = GetThreadCount(sorted_idxs.size());
+  if (thread_count <= 1 || sorted_idxs.size() < thread_count * 2) {
+    for (size_t i = 1; i < sorted_idxs.size(); ++i) {
       if (std::abs(CrossVal(xs, ys, anchor_idx, sorted_idxs[0], sorted_idxs[i])) > kKEps) {
-        local_ok = false;
+        return false;
       }
     }
-    return local_ok;
-  }, [](bool lhs, bool rhs) { return lhs && rhs; });
+    return true;
+  }
+
+  std::atomic<bool> result{true};
+  std::vector<std::thread> workers;
+  workers.reserve(thread_count);
+
+  const size_t block = (sorted_idxs.size() + thread_count - 1) / thread_count;
+
+  for (size_t t = 0; t < thread_count; ++t) {
+    const size_t begin = t * block;
+    const size_t end = std::min(sorted_idxs.size(), begin + block);
+
+    if (begin >= end) {
+      continue;
+    }
+
+    workers.emplace_back([&, begin, end]() {
+      for (size_t i = std::max<size_t>(1, begin); i < end && result.load(); ++i) {
+        if (std::abs(CrossVal(xs, ys, anchor_idx, sorted_idxs[0], sorted_idxs[i])) > kKEps) {
+          result.store(false);
+          break;
+        }
+      }
+    });
+  }
+
+  for (auto &worker : workers) {
+    worker.join();
+  }
+
+  return result.load();
 }
 
-std::vector<std::pair<double, double>> KonstantinovAGrahamTBB::BuildHullFromSorted(
+std::vector<std::pair<double, double>> KonstantinovAGrahamSTL::BuildHullFromSorted(
     const std::vector<double> &xs, const std::vector<double> &ys, size_t anchor_idx,
     const std::vector<size_t> &sorted_idxs) {
   std::vector<size_t> stack;
@@ -159,8 +261,8 @@ std::vector<std::pair<double, double>> KonstantinovAGrahamTBB::BuildHullFromSort
     while (stack.size() >= 2) {
       const size_t q = stack.back();
       const size_t p = stack[stack.size() - 2];
-
       const double cr = CrossVal(xs, ys, p, q, cur);
+
       if (cr <= kKEps) {
         stack.pop_back();
       } else {
@@ -181,7 +283,7 @@ std::vector<std::pair<double, double>> KonstantinovAGrahamTBB::BuildHullFromSort
   return hull;
 }
 
-bool KonstantinovAGrahamTBB::RunImpl() {
+bool KonstantinovAGrahamSTL::RunImpl() {
   const InType &inp = GetInput();
   auto xs = inp.first;
   auto ys = inp.second;
@@ -223,7 +325,7 @@ bool KonstantinovAGrahamTBB::RunImpl() {
   return true;
 }
 
-bool KonstantinovAGrahamTBB::PostProcessingImpl() {
+bool KonstantinovAGrahamSTL::PostProcessingImpl() {
   return true;
 }
 
