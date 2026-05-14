@@ -1,8 +1,12 @@
-#include "konstantinov_s_graham/tbb/include/ops_tbb.hpp"
+#include "konstantinov_s_graham/all/include/ops_all.hpp"
+
+#include <mpi.h>
 
 #include <tbb/blocked_range.h>
+#include <tbb/global_control.h>
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
+#include <tbb/parallel_sort.h>
 
 #include <algorithm>
 #include <cmath>
@@ -12,10 +16,62 @@
 #include <vector>
 
 #include "konstantinov_s_graham/common/include/common.hpp"
+#include "util/include/util.hpp"
 
 namespace konstantinov_s_graham {
 
-bool KonstantinovAGrahamTBB::IsLowerAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t lhs,
+KonstantinovAGrahamALL::KonstantinovAGrahamALL(const InType &in) {
+  MPI_Comm_rank(MPI_COMM_WORLD, &proc_rank_);
+  MPI_Comm_size(MPI_COMM_WORLD, &proc_num_);
+
+  SetTypeOfTask(GetStaticTypeOfTask());
+
+  if (proc_rank_ == 0) {
+    GetInput() = in;
+  }
+
+  GetOutput() = OutType();
+}
+
+bool KonstantinovAGrahamALL::ValidationImpl() {
+  return GetInput().first.size() == GetInput().second.size();
+}
+
+bool KonstantinovAGrahamALL::PreProcessingImpl() {
+  return true;
+}
+
+void KonstantinovAGrahamALL::RemoveDuplicates(std::vector<double> &xs, std::vector<double> &ys) {
+  std::vector<std::pair<double, double>> pts;
+  pts.reserve(xs.size());
+
+  for (size_t i = 0; i < xs.size(); ++i) {
+    pts.emplace_back(xs[i], ys[i]);
+  }
+
+  tbb::parallel_sort(pts.begin(), pts.end(), [](const auto &lhs, const auto &rhs) {
+    if (std::abs(lhs.first - rhs.first) > kKEps) {
+      return lhs.first < rhs.first;
+    }
+    return lhs.second < rhs.second;
+  });
+
+  const auto unique_end = std::ranges::unique(pts, [](const auto &lhs, const auto &rhs) {
+    return std::abs(lhs.first - rhs.first) < kKEps && std::abs(lhs.second - rhs.second) < kKEps;
+  });
+
+  pts.erase(unique_end.begin(), pts.end());
+
+  xs.resize(pts.size());
+  ys.resize(pts.size());
+
+  for (size_t i = 0; i < pts.size(); ++i) {
+    xs[i] = pts[i].first;
+    ys[i] = pts[i].second;
+  }
+}
+
+bool KonstantinovAGrahamALL::IsLowerAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t lhs,
                                            size_t rhs) {
   if (ys[lhs] < ys[rhs] - kKEps) {
     return true;
@@ -28,68 +84,34 @@ bool KonstantinovAGrahamTBB::IsLowerAnchor(const std::vector<double> &xs, const 
   return false;
 }
 
-KonstantinovAGrahamTBB::KonstantinovAGrahamTBB(const InType &in) {
-  SetTypeOfTask(GetStaticTypeOfTask());
-  GetInput() = in;
-}
-
-bool KonstantinovAGrahamTBB::ValidationImpl() {
-  return GetInput().first.size() == GetInput().second.size();
-}
-
-bool KonstantinovAGrahamTBB::PreProcessingImpl() {
-  return true;
-}
-
-void KonstantinovAGrahamTBB::RemoveDuplicates(std::vector<double> &xs, std::vector<double> &ys) {
-  std::vector<std::pair<double, double>> pts;
-  pts.reserve(xs.size());
-
-  for (size_t i = 0; i < xs.size(); ++i) {
-    pts.emplace_back(xs[i], ys[i]);
+size_t KonstantinovAGrahamALL::FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys) {
+  if (xs.empty()) {
+    return 0;
   }
 
-  std::ranges::sort(pts, [](const auto &a, const auto &b) {
-    if (std::abs(a.first - b.first) > kKEps) {
-      return a.first < b.first;
-    }
-    return a.second < b.second;
-  });
-
-  const auto new_end = std::ranges::unique(pts, [](const auto &a, const auto &b) {
-    return std::abs(a.first - b.first) < kKEps && std::abs(a.second - b.second) < kKEps;
-  });
-
-  pts.erase(new_end.begin(), pts.end());
-
-  xs.resize(pts.size());
-  ys.resize(pts.size());
-
-  for (size_t i = 0; i < pts.size(); ++i) {
-    xs[i] = pts[i].first;
-    ys[i] = pts[i].second;
-  }
+  return tbb::parallel_reduce(
+      tbb::blocked_range<size_t>(1, xs.size()), size_t{0},
+      [&xs, &ys](const tbb::blocked_range<size_t> &range, size_t local_idx) {
+        for (size_t i = range.begin(); i < range.end(); ++i) {
+          if (IsLowerAnchor(xs, ys, i, local_idx)) {
+            local_idx = i;
+          }
+        }
+        return local_idx;
+      },
+      [&xs, &ys](size_t left, size_t right) {
+        return IsLowerAnchor(xs, ys, left, right) ? left : right;
+      });
 }
 
-size_t KonstantinovAGrahamTBB::FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys) {
-  return tbb::parallel_reduce(tbb::blocked_range<size_t>(1, xs.size()), size_t{0},
-                              [&xs, &ys](const tbb::blocked_range<size_t> &range, size_t local_idx) {
-    for (size_t i = range.begin(); i < range.end(); ++i) {
-      if (IsLowerAnchor(xs, ys, i, local_idx)) {
-        local_idx = i;
-      }
-    }
-    return local_idx;
-  }, [&xs, &ys](size_t left, size_t right) { return IsLowerAnchor(xs, ys, left, right) ? left : right; });
-}
-
-double KonstantinovAGrahamTBB::Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j) {
+double KonstantinovAGrahamALL::Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i,
+                                     size_t j) {
   const double dx = xs[j] - xs[i];
   const double dy = ys[j] - ys[i];
   return (dx * dx) + (dy * dy);
 }
 
-double KonstantinovAGrahamTBB::CrossVal(const std::vector<double> &xs, const std::vector<double> &ys, size_t i,
+double KonstantinovAGrahamALL::CrossVal(const std::vector<double> &xs, const std::vector<double> &ys, size_t i,
                                         size_t j, size_t k) {
   const double ax = xs[j] - xs[i];
   const double ay = ys[j] - ys[i];
@@ -98,51 +120,121 @@ double KonstantinovAGrahamTBB::CrossVal(const std::vector<double> &xs, const std
   return (ax * by) - (ay * bx);
 }
 
-std::vector<size_t> KonstantinovAGrahamTBB::CollectAndSortIndices(const std::vector<double> &xs,
-                                                                  const std::vector<double> &ys, size_t anchor_idx) {
+void KonstantinovAGrahamALL::FillIndexRange(std::vector<size_t> &idxs, size_t begin, size_t end, size_t anchor_idx) {
+  for (size_t i = begin; i < end; ++i) {
+    if (i < anchor_idx) {
+      idxs[i] = i;
+    } else if (i > anchor_idx) {
+      idxs[i - 1] = i;
+    }
+  }
+}
+
+void KonstantinovAGrahamALL::FillIndicesParallel(std::vector<size_t> &idxs, size_t point_count, size_t anchor_idx) {
+  const size_t thread_count = static_cast<size_t>(ppc::util::GetNumThreads());
+
+  if (thread_count <= 1 || point_count < (thread_count * 2)) {
+    FillIndexRange(idxs, 0, point_count, anchor_idx);
+    return;
+  }
+
+  std::vector<std::thread> workers;
+  workers.reserve(thread_count);
+
+  const size_t block_size = (point_count + thread_count - 1) / thread_count;
+
+  for (size_t thread_idx = 0; thread_idx < thread_count; ++thread_idx) {
+    const size_t begin = thread_idx * block_size;
+    const size_t end = std::min(point_count, begin + block_size);
+
+    if (begin >= end) {
+      continue;
+    }
+
+    workers.emplace_back([&, begin, end]() {
+      FillIndexRange(idxs, begin, end, anchor_idx);
+    });
+  }
+
+  for (auto &worker : workers) {
+    worker.join();
+  }
+}
+
+std::vector<size_t> KonstantinovAGrahamALL::CollectAndSortIndices(const std::vector<double> &xs,
+                                                                  const std::vector<double> &ys,
+                                                                  size_t anchor_idx) {
   std::vector<size_t> idxs(xs.size() - 1);
 
-  tbb::parallel_for(tbb::blocked_range<size_t>(0, xs.size()), [&idxs, anchor_idx](const tbb::blocked_range<size_t> &r) {
-    for (size_t i = r.begin(); i < r.end(); ++i) {
-      if (i < anchor_idx) {
-        idxs[i] = i;
-      } else if (i > anchor_idx) {
-        idxs[i - 1] = i;
-      }
-    }
-  });
+  FillIndicesParallel(idxs, xs.size(), anchor_idx);
 
-  std::ranges::sort(idxs, [&xs, &ys, anchor_idx](size_t a, size_t b) {
-    const double cr = CrossVal(xs, ys, anchor_idx, a, b);
+  tbb::parallel_sort(idxs.begin(), idxs.end(), [&xs, &ys, anchor_idx](size_t left, size_t right) {
+    const double cross = CrossVal(xs, ys, anchor_idx, left, right);
 
-    if (std::abs(cr) < kKEps) {
-      return Dist2(xs, ys, anchor_idx, a) < Dist2(xs, ys, anchor_idx, b);
+    if (std::abs(cross) < kKEps) {
+      return Dist2(xs, ys, anchor_idx, left) < Dist2(xs, ys, anchor_idx, right);
     }
 
-    return cr > 0;
+    return cross > 0;
   });
 
   return idxs;
 }
 
-bool KonstantinovAGrahamTBB::AllCollinearWithAnchor(const std::vector<double> &xs, const std::vector<double> &ys,
+bool KonstantinovAGrahamALL::CheckCollinearRange(const std::vector<double> &xs, const std::vector<double> &ys,
+                                                 size_t anchor_idx, const std::vector<size_t> &sorted_idxs,
+                                                 size_t begin, size_t end) {
+  for (size_t i = begin; i < end; ++i) {
+    if (std::abs(CrossVal(xs, ys, anchor_idx, sorted_idxs[0], sorted_idxs[i])) > kKEps) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool KonstantinovAGrahamALL::AllCollinearWithAnchor(const std::vector<double> &xs, const std::vector<double> &ys,
                                                     size_t anchor_idx, const std::vector<size_t> &sorted_idxs) {
-  if (sorted_idxs.empty()) {
+  if (sorted_idxs.size() < 2) {
     return true;
   }
 
-  return tbb::parallel_reduce(tbb::blocked_range<size_t>(1, sorted_idxs.size()), true,
-                              [&xs, &ys, anchor_idx, &sorted_idxs](const tbb::blocked_range<size_t> &r, bool local_ok) {
-    for (size_t i = r.begin(); i < r.end() && local_ok; ++i) {
-      if (std::abs(CrossVal(xs, ys, anchor_idx, sorted_idxs[0], sorted_idxs[i])) > kKEps) {
-        local_ok = false;
-      }
+  const size_t thread_count = static_cast<size_t>(ppc::util::GetNumThreads());
+
+  if (thread_count <= 1 || sorted_idxs.size() < (thread_count * 2)) {
+    return CheckCollinearRange(xs, ys, anchor_idx, sorted_idxs, 1, sorted_idxs.size());
+  }
+
+  std::vector<std::thread> workers;
+  workers.reserve(thread_count);
+
+  std::atomic<bool> result{true};
+
+  const size_t block_size = (sorted_idxs.size() + thread_count - 1) / thread_count;
+
+  for (size_t thread_idx = 0; thread_idx < thread_count; ++thread_idx) {
+    const size_t begin = std::max<size_t>(1, thread_idx * block_size);
+    const size_t end = std::min(sorted_idxs.size(), begin + block_size);
+
+    if (begin >= end) {
+      continue;
     }
-    return local_ok;
-  }, [](bool lhs, bool rhs) { return lhs && rhs; });
+
+    workers.emplace_back([&, begin, end]() {
+      if (!CheckCollinearRange(xs, ys, anchor_idx, sorted_idxs, begin, end)) {
+        result.store(false);
+      }
+    });
+  }
+
+  for (auto &worker : workers) {
+    worker.join();
+  }
+
+  return result.load();
 }
 
-std::vector<std::pair<double, double>> KonstantinovAGrahamTBB::BuildHullFromSorted(
+std::vector<std::pair<double, double>> KonstantinovAGrahamALL::BuildHullFromSorted(
     const std::vector<double> &xs, const std::vector<double> &ys, size_t anchor_idx,
     const std::vector<size_t> &sorted_idxs) {
   std::vector<size_t> stack;
@@ -159,9 +251,9 @@ std::vector<std::pair<double, double>> KonstantinovAGrahamTBB::BuildHullFromSort
     while (stack.size() >= 2) {
       const size_t q = stack.back();
       const size_t p = stack[stack.size() - 2];
+      const double cross = CrossVal(xs, ys, p, q, cur);
 
-      const double cr = CrossVal(xs, ys, p, q, cur);
-      if (cr <= kKEps) {
+      if (cross <= kKEps) {
         stack.pop_back();
       } else {
         break;
@@ -181,16 +273,15 @@ std::vector<std::pair<double, double>> KonstantinovAGrahamTBB::BuildHullFromSort
   return hull;
 }
 
-bool KonstantinovAGrahamTBB::RunImpl() {
-  const InType &inp = GetInput();
-  auto xs = inp.first;
-  auto ys = inp.second;
+std::vector<std::pair<double, double>> KonstantinovAGrahamALL::BuildHullFromCoords(const std::vector<double> &xs_in,
+                                                                                   const std::vector<double> &ys_in) {
+  std::vector<double> xs = xs_in;
+  std::vector<double> ys = ys_in;
 
   RemoveDuplicates(xs, ys);
 
   if (xs.size() != ys.size() || xs.empty()) {
-    GetOutput() = {};
-    return true;
+    return {};
   }
 
   if (xs.size() < 3) {
@@ -201,29 +292,172 @@ bool KonstantinovAGrahamTBB::RunImpl() {
       out.emplace_back(xs[i], ys[i]);
     }
 
-    GetOutput() = out;
-    return true;
+    return out;
   }
 
-  const size_t anchor = FindAnchorIndex(xs, ys);
-  std::vector<size_t> sorted_idxs = CollectAndSortIndices(xs, ys, anchor);
+  const size_t anchor_idx = FindAnchorIndex(xs, ys);
+  const std::vector<size_t> sorted_idxs = CollectAndSortIndices(xs, ys, anchor_idx);
 
   if (sorted_idxs.empty()) {
-    GetOutput() = {{xs[anchor], ys[anchor]}};
-    return true;
+    return {{xs[anchor_idx], ys[anchor_idx]}};
   }
 
-  if (AllCollinearWithAnchor(xs, ys, anchor, sorted_idxs)) {
+  if (AllCollinearWithAnchor(xs, ys, anchor_idx, sorted_idxs)) {
     const size_t far_idx = sorted_idxs.back();
-    GetOutput() = {{xs[anchor], ys[anchor]}, {xs[far_idx], ys[far_idx]}};
+    return {{xs[anchor_idx], ys[anchor_idx]}, {xs[far_idx], ys[far_idx]}};
+  }
+
+  return BuildHullFromSorted(xs, ys, anchor_idx, sorted_idxs);
+}
+
+void KonstantinovAGrahamALL::ScatterInput(size_t total_size, std::vector<double> &local_xs,
+                                          std::vector<double> &local_ys) {
+  std::vector<int> counts(proc_num_, 0);
+  std::vector<int> displs(proc_num_, 0);
+
+  const size_t base = total_size / static_cast<size_t>(proc_num_);
+  const size_t remainder = total_size % static_cast<size_t>(proc_num_);
+
+  size_t offset = 0;
+  for (int rank = 0; rank < proc_num_; ++rank) {
+    const size_t amount = base + (static_cast<size_t>(rank) < remainder ? 1U : 0U);
+    counts[rank] = static_cast<int>(amount);
+    displs[rank] = static_cast<int>(offset);
+    offset += amount;
+  }
+
+  const int local_size = counts[proc_rank_];
+  local_xs.resize(static_cast<size_t>(local_size));
+  local_ys.resize(static_cast<size_t>(local_size));
+
+  const double *send_xs = proc_rank_ == 0 ? GetInput().first.data() : nullptr;
+  const double *send_ys = proc_rank_ == 0 ? GetInput().second.data() : nullptr;
+
+  MPI_Scatterv(send_xs, counts.data(), displs.data(), MPI_DOUBLE, local_xs.data(), local_size, MPI_DOUBLE, 0,
+               MPI_COMM_WORLD);
+  MPI_Scatterv(send_ys, counts.data(), displs.data(), MPI_DOUBLE, local_ys.data(), local_size, MPI_DOUBLE, 0,
+               MPI_COMM_WORLD);
+}
+
+void KonstantinovAGrahamALL::GatherLocalHull(const std::vector<std::pair<double, double>> &local_hull,
+                                             std::vector<double> &gathered_xs, std::vector<double> &gathered_ys) {
+  const int local_size = static_cast<int>(local_hull.size());
+
+  std::vector<int> counts(proc_num_, 0);
+  MPI_Gather(&local_size, 1, MPI_INT, proc_rank_ == 0 ? counts.data() : nullptr, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+  std::vector<int> displs(proc_num_, 0);
+  int total_size = 0;
+
+  if (proc_rank_ == 0) {
+    for (int rank = 0; rank < proc_num_; ++rank) {
+      displs[rank] = total_size;
+      total_size += counts[rank];
+    }
+
+    gathered_xs.resize(static_cast<size_t>(total_size));
+    gathered_ys.resize(static_cast<size_t>(total_size));
+  }
+
+  std::vector<double> local_xs(static_cast<size_t>(local_size));
+  std::vector<double> local_ys(static_cast<size_t>(local_size));
+
+  for (int i = 0; i < local_size; ++i) {
+    local_xs[static_cast<size_t>(i)] = local_hull[static_cast<size_t>(i)].first;
+    local_ys[static_cast<size_t>(i)] = local_hull[static_cast<size_t>(i)].second;
+  }
+
+  MPI_Gatherv(local_xs.data(), local_size, MPI_DOUBLE, proc_rank_ == 0 ? gathered_xs.data() : nullptr,
+              proc_rank_ == 0 ? counts.data() : nullptr, proc_rank_ == 0 ? displs.data() : nullptr, MPI_DOUBLE, 0,
+              MPI_COMM_WORLD);
+
+  MPI_Gatherv(local_ys.data(), local_size, MPI_DOUBLE, proc_rank_ == 0 ? gathered_ys.data() : nullptr,
+              proc_rank_ == 0 ? counts.data() : nullptr, proc_rank_ == 0 ? displs.data() : nullptr, MPI_DOUBLE, 0,
+              MPI_COMM_WORLD);
+}
+
+void KonstantinovAGrahamALL::BroadcastOutput() {
+  unsigned long long size_ull = 0;
+
+  if (proc_rank_ == 0) {
+    size_ull = static_cast<unsigned long long>(GetOutput().size());
+  }
+
+  MPI_Bcast(&size_ull, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+
+  const size_t size = static_cast<size_t>(size_ull);
+
+  std::vector<double> xs(size);
+  std::vector<double> ys(size);
+
+  if (proc_rank_ == 0) {
+    for (size_t i = 0; i < size; ++i) {
+      xs[i] = GetOutput()[i].first;
+      ys[i] = GetOutput()[i].second;
+    }
+  }
+
+  if (size > 0) {
+    MPI_Bcast(xs.data(), static_cast<int>(size), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(ys.data(), static_cast<int>(size), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  }
+
+  if (proc_rank_ != 0) {
+    GetOutput().resize(size);
+    for (size_t i = 0; i < size; ++i) {
+      GetOutput()[i] = {xs[i], ys[i]};
+    }
+  }
+}
+
+bool KonstantinovAGrahamALL::RunImpl() {
+  const tbb::global_control gc(tbb::global_control::max_allowed_parallelism, ppc::util::GetNumThreads());
+
+  unsigned long long total_size_ull = 0;
+
+  if (proc_rank_ == 0) {
+    total_size_ull = static_cast<unsigned long long>(GetInput().first.size());
+  }
+
+  MPI_Bcast(&total_size_ull, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+
+  const size_t total_size = static_cast<size_t>(total_size_ull);
+
+  if (total_size == 0) {
+    if (proc_rank_ == 0) {
+      GetOutput() = {};
+    }
+    BroadcastOutput();
     return true;
   }
 
-  GetOutput() = BuildHullFromSorted(xs, ys, anchor, sorted_idxs);
+  if (total_size < 3 || proc_num_ == 1) {
+    if (proc_rank_ == 0) {
+      GetOutput() = BuildHullFromCoords(GetInput().first, GetInput().second);
+    }
+    BroadcastOutput();
+    return true;
+  }
+
+  std::vector<double> local_xs;
+  std::vector<double> local_ys;
+  ScatterInput(total_size, local_xs, local_ys);
+
+  std::vector<std::pair<double, double>> local_hull = BuildHullFromCoords(local_xs, local_ys);
+
+  std::vector<double> gathered_xs;
+  std::vector<double> gathered_ys;
+  GatherLocalHull(local_hull, gathered_xs, gathered_ys);
+
+  if (proc_rank_ == 0) {
+    GetOutput() = BuildHullFromCoords(gathered_xs, gathered_ys);
+  }
+
+  BroadcastOutput();
   return true;
 }
 
-bool KonstantinovAGrahamTBB::PostProcessingImpl() {
+bool KonstantinovAGrahamALL::PostProcessingImpl() {
   return true;
 }
 
