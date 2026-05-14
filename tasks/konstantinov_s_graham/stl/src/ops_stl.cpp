@@ -4,10 +4,10 @@
 #include <atomic>
 #include <cmath>
 #include <cstddef>
+#include <ranges>
 #include <thread>
 #include <utility>
 #include <vector>
-#include <ranges>
 
 #include "konstantinov_s_graham/common/include/common.hpp"
 
@@ -74,8 +74,7 @@ void KonstantinovAGrahamSTL::RemoveDuplicates(std::vector<double> &xs, std::vect
   });
 
   const auto unique_end = std::ranges::unique(pts, [](const auto &lhs, const auto &rhs) {
-    return std::abs(lhs.first - rhs.first) < kKEps &&
-           std::abs(lhs.second - rhs.second) < kKEps;
+    return std::abs(lhs.first - rhs.first) < kKEps && std::abs(lhs.second - rhs.second) < kKEps;
   });
 
   pts.erase(unique_end.begin(), pts.end());
@@ -89,8 +88,7 @@ void KonstantinovAGrahamSTL::RemoveDuplicates(std::vector<double> &xs, std::vect
   }
 }
 
-size_t KonstantinovAGrahamSTL::FindAnchorIndex(const std::vector<double> &xs,
-                                               const std::vector<double> &ys) {
+size_t KonstantinovAGrahamSTL::FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys) {
   if (xs.empty()) {
     return 0;
   }
@@ -116,9 +114,8 @@ size_t KonstantinovAGrahamSTL::FindAnchorIndex(const std::vector<double> &xs,
       continue;
     }
 
-    workers.emplace_back([&, thread_idx, begin, end]() {
-      local_results[thread_idx] = FindLocalAnchor(xs, ys, begin, end);
-    });
+    workers.emplace_back(
+        [&, thread_idx, begin, end]() { local_results[thread_idx] = FindLocalAnchor(xs, ys, begin, end); });
   }
 
   for (auto &worker : workers) {
@@ -151,10 +148,8 @@ double KonstantinovAGrahamSTL::CrossVal(const std::vector<double> &xs, const std
   return (ax * by) - (ay * bx);
 }
 
-std::vector<size_t> KonstantinovAGrahamSTL::CollectAndSortIndices(
-    const std::vector<double> &xs,
-    const std::vector<double> &ys,
-    size_t anchor_idx) {
+std::vector<size_t> KonstantinovAGrahamSTL::CollectAndSortIndices(const std::vector<double> &xs,
+                                                                  const std::vector<double> &ys, size_t anchor_idx) {
   std::vector<size_t> idxs(xs.size() - 1);
 
   const size_t thread_count = GetThreadCount(xs.size());
@@ -169,8 +164,7 @@ std::vector<size_t> KonstantinovAGrahamSTL::CollectAndSortIndices(
     const double cross = CrossVal(xs, ys, anchor_idx, lhs, rhs);
 
     if (std::abs(cross) < kKEps) {
-      return Dist2(xs, ys, anchor_idx, lhs) <
-             Dist2(xs, ys, anchor_idx, rhs);
+      return Dist2(xs, ys, anchor_idx, lhs) < Dist2(xs, ys, anchor_idx, rhs);
     }
 
     return cross > 0;
@@ -179,16 +173,11 @@ std::vector<size_t> KonstantinovAGrahamSTL::CollectAndSortIndices(
   return idxs;
 }
 
-bool KonstantinovAGrahamSTL::CheckCollinearRange(
-    const std::vector<double> &xs,
-    const std::vector<double> &ys,
-    size_t anchor_idx,
-    const std::vector<size_t> &sorted_idxs,
-    size_t begin,
-    size_t end) {
+bool KonstantinovAGrahamSTL::CheckCollinearRange(const std::vector<double> &xs, const std::vector<double> &ys,
+                                                 size_t anchor_idx, const std::vector<size_t> &sorted_idxs,
+                                                 size_t begin, size_t end) {
   for (size_t i = begin; i < end; ++i) {
-    if (std::abs(CrossVal(xs, ys, anchor_idx,
-                          sorted_idxs[0], sorted_idxs[i])) > kKEps) {
+    if (std::abs(CrossVal(xs, ys, anchor_idx, sorted_idxs[0], sorted_idxs[i])) > kKEps) {
       return false;
     }
   }
@@ -196,10 +185,7 @@ bool KonstantinovAGrahamSTL::CheckCollinearRange(
   return true;
 }
 
-void KonstantinovAGrahamSTL::FillIndexRange(std::vector<size_t> &idxs,
-                                            size_t begin,
-                                            size_t end,
-                                            size_t anchor_idx) {
+void KonstantinovAGrahamSTL::FillIndexRange(std::vector<size_t> &idxs, size_t begin, size_t end, size_t anchor_idx) {
   for (size_t i = begin; i < end; ++i) {
     if (i < anchor_idx) {
       idxs[i] = i;
@@ -209,9 +195,7 @@ void KonstantinovAGrahamSTL::FillIndexRange(std::vector<size_t> &idxs,
   }
 }
 
-void KonstantinovAGrahamSTL::FillIndicesParallel(std::vector<size_t> &idxs,
-                                                 size_t point_count,
-                                                 size_t anchor_idx,
+void KonstantinovAGrahamSTL::FillIndicesParallel(std::vector<size_t> &idxs, size_t point_count, size_t anchor_idx,
                                                  size_t thread_count) {
   std::vector<std::thread> workers;
   workers.reserve(thread_count);
@@ -226,9 +210,7 @@ void KonstantinovAGrahamSTL::FillIndicesParallel(std::vector<size_t> &idxs,
       continue;
     }
 
-    workers.emplace_back([&, begin, end]() {
-      FillIndexRange(idxs, begin, end, anchor_idx);
-    });
+    workers.emplace_back([&, begin, end]() { FillIndexRange(idxs, begin, end, anchor_idx); });
   }
 
   for (auto &worker : workers) {
@@ -236,11 +218,8 @@ void KonstantinovAGrahamSTL::FillIndicesParallel(std::vector<size_t> &idxs,
   }
 }
 
-bool KonstantinovAGrahamSTL::AllCollinearWithAnchor(
-    const std::vector<double> &xs,
-    const std::vector<double> &ys,
-    size_t anchor_idx,
-    const std::vector<size_t> &sorted_idxs) {
+bool KonstantinovAGrahamSTL::AllCollinearWithAnchor(const std::vector<double> &xs, const std::vector<double> &ys,
+                                                    size_t anchor_idx, const std::vector<size_t> &sorted_idxs) {
   if (sorted_idxs.empty()) {
     return true;
   }
@@ -248,8 +227,7 @@ bool KonstantinovAGrahamSTL::AllCollinearWithAnchor(
   const size_t thread_count = GetThreadCount(sorted_idxs.size());
 
   if (thread_count <= 1 || sorted_idxs.size() < (thread_count * 2)) {
-    return CheckCollinearRange(xs, ys, anchor_idx,
-                               sorted_idxs, 1, sorted_idxs.size());
+    return CheckCollinearRange(xs, ys, anchor_idx, sorted_idxs, 1, sorted_idxs.size());
   }
 
   std::atomic<bool> result{true};
@@ -257,21 +235,18 @@ bool KonstantinovAGrahamSTL::AllCollinearWithAnchor(
   std::vector<std::thread> workers;
   workers.reserve(thread_count);
 
-  const size_t block_size =
-      (sorted_idxs.size() + thread_count - 1) / thread_count;
+  const size_t block_size = (sorted_idxs.size() + thread_count - 1) / thread_count;
 
   for (size_t thread_idx = 0; thread_idx < thread_count; ++thread_idx) {
     const size_t begin = std::max<size_t>(1, thread_idx * block_size);
-    const size_t end =
-        std::min(sorted_idxs.size(), begin + block_size);
+    const size_t end = std::min(sorted_idxs.size(), begin + block_size);
 
     if (begin >= end) {
       continue;
     }
 
     workers.emplace_back([&, begin, end]() {
-      if (!CheckCollinearRange(xs, ys, anchor_idx,
-                               sorted_idxs, begin, end)) {
+      if (!CheckCollinearRange(xs, ys, anchor_idx, sorted_idxs, begin, end)) {
         result.store(false);
       }
     });
