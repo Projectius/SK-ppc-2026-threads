@@ -7,6 +7,7 @@
 #include <thread>
 #include <utility>
 #include <vector>
+#include <ranges>
 
 #include "konstantinov_s_graham/common/include/common.hpp"
 
@@ -64,18 +65,20 @@ void KonstantinovAGrahamSTL::RemoveDuplicates(std::vector<double> &xs, std::vect
     pts.emplace_back(xs[i], ys[i]);
   }
 
-  std::sort(pts.begin(), pts.end(), [](const auto &a, const auto &b) {
-    if (std::abs(a.first - b.first) > kKEps) {
-      return a.first < b.first;
+  std::ranges::sort(pts, [](const auto &lhs, const auto &rhs) {
+    if (std::abs(lhs.first - rhs.first) > kKEps) {
+      return lhs.first < rhs.first;
     }
-    return a.second < b.second;
+
+    return lhs.second < rhs.second;
   });
 
-  const auto new_end = std::unique(pts.begin(), pts.end(), [](const auto &a, const auto &b) {
-    return std::abs(a.first - b.first) < kKEps && std::abs(a.second - b.second) < kKEps;
+  const auto unique_end = std::ranges::unique(pts, [](const auto &lhs, const auto &rhs) {
+    return std::abs(lhs.first - rhs.first) < kKEps &&
+           std::abs(lhs.second - rhs.second) < kKEps;
   });
 
-  pts.erase(new_end, pts.end());
+  pts.erase(unique_end.begin(), pts.end());
 
   xs.resize(pts.size());
   ys.resize(pts.size());
@@ -86,13 +89,15 @@ void KonstantinovAGrahamSTL::RemoveDuplicates(std::vector<double> &xs, std::vect
   }
 }
 
-size_t KonstantinovAGrahamSTL::FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys) {
+size_t KonstantinovAGrahamSTL::FindAnchorIndex(const std::vector<double> &xs,
+                                               const std::vector<double> &ys) {
   if (xs.empty()) {
     return 0;
   }
 
   const size_t thread_count = GetThreadCount(xs.size());
-  if (thread_count <= 1 || xs.size() < thread_count * 2) {
+
+  if (thread_count <= 1 || xs.size() < (thread_count * 2)) {
     return FindLocalAnchor(xs, ys, 0, xs.size());
   }
 
@@ -100,18 +105,20 @@ size_t KonstantinovAGrahamSTL::FindAnchorIndex(const std::vector<double> &xs, co
   std::vector<std::thread> workers;
   workers.reserve(thread_count);
 
-  const size_t block = (xs.size() + thread_count - 1) / thread_count;
+  const size_t block_size = (xs.size() + thread_count - 1) / thread_count;
 
-  for (size_t t = 0; t < thread_count; ++t) {
-    const size_t begin = t * block;
-    const size_t end = std::min(xs.size(), begin + block);
+  for (size_t thread_idx = 0; thread_idx < thread_count; ++thread_idx) {
+    const size_t begin = thread_idx * block_size;
+    const size_t end = std::min(xs.size(), begin + block_size);
 
     if (begin >= end) {
-      local_results[t] = 0;
+      local_results[thread_idx] = 0;
       continue;
     }
 
-    workers.emplace_back([&, t, begin, end]() { local_results[t] = FindLocalAnchor(xs, ys, begin, end); });
+    workers.emplace_back([&, thread_idx, begin, end]() {
+      local_results[thread_idx] = FindLocalAnchor(xs, ys, begin, end);
+    });
   }
 
   for (auto &worker : workers) {
@@ -119,9 +126,10 @@ size_t KonstantinovAGrahamSTL::FindAnchorIndex(const std::vector<double> &xs, co
   }
 
   size_t best = local_results[0];
-  for (size_t t = 1; t < thread_count; ++t) {
-    if (IsLowerAnchor(xs, ys, local_results[t], best)) {
-      best = local_results[t];
+
+  for (size_t thread_idx = 1; thread_idx < thread_count; ++thread_idx) {
+    if (IsLowerAnchor(xs, ys, local_results[thread_idx], best)) {
+      best = local_results[thread_idx];
     }
   }
 
@@ -143,98 +151,128 @@ double KonstantinovAGrahamSTL::CrossVal(const std::vector<double> &xs, const std
   return (ax * by) - (ay * bx);
 }
 
-std::vector<size_t> KonstantinovAGrahamSTL::CollectAndSortIndices(const std::vector<double> &xs,
-                                                                  const std::vector<double> &ys, size_t anchor_idx) {
+std::vector<size_t> KonstantinovAGrahamSTL::CollectAndSortIndices(
+    const std::vector<double> &xs,
+    const std::vector<double> &ys,
+    size_t anchor_idx) {
   std::vector<size_t> idxs(xs.size() - 1);
 
   const size_t thread_count = GetThreadCount(xs.size());
-  if (thread_count <= 1 || xs.size() < thread_count * 2) {
-    for (size_t i = 0; i < xs.size(); ++i) {
-      if (i < anchor_idx) {
-        idxs[i] = i;
-      } else if (i > anchor_idx) {
-        idxs[i - 1] = i;
-      }
-    }
+
+  if (thread_count <= 1 || xs.size() < (thread_count * 2)) {
+    FillIndexRange(idxs, 0, xs.size(), anchor_idx);
   } else {
-    std::vector<std::thread> workers;
-    workers.reserve(thread_count);
-
-    const size_t block = (xs.size() + thread_count - 1) / thread_count;
-
-    for (size_t t = 0; t < thread_count; ++t) {
-      const size_t begin = t * block;
-      const size_t end = std::min(xs.size(), begin + block);
-
-      if (begin >= end) {
-        continue;
-      }
-
-      workers.emplace_back([&, begin, end]() {
-        for (size_t i = begin; i < end; ++i) {
-          if (i < anchor_idx) {
-            idxs[i] = i;
-          } else if (i > anchor_idx) {
-            idxs[i - 1] = i;
-          }
-        }
-      });
-    }
-
-    for (auto &worker : workers) {
-      worker.join();
-    }
+    FillIndicesParallel(idxs, xs.size(), anchor_idx, thread_count);
   }
 
-  std::sort(idxs.begin(), idxs.end(), [&xs, &ys, anchor_idx](size_t a, size_t b) {
-    const double cr = CrossVal(xs, ys, anchor_idx, a, b);
+  std::ranges::sort(idxs, [&xs, &ys, anchor_idx](size_t lhs, size_t rhs) {
+    const double cross = CrossVal(xs, ys, anchor_idx, lhs, rhs);
 
-    if (std::abs(cr) < kKEps) {
-      return Dist2(xs, ys, anchor_idx, a) < Dist2(xs, ys, anchor_idx, b);
+    if (std::abs(cross) < kKEps) {
+      return Dist2(xs, ys, anchor_idx, lhs) <
+             Dist2(xs, ys, anchor_idx, rhs);
     }
 
-    return cr > 0;
+    return cross > 0;
   });
 
   return idxs;
 }
 
-bool KonstantinovAGrahamSTL::AllCollinearWithAnchor(const std::vector<double> &xs, const std::vector<double> &ys,
-                                                    size_t anchor_idx, const std::vector<size_t> &sorted_idxs) {
-  if (sorted_idxs.empty()) {
-    return true;
-  }
-
-  const size_t thread_count = GetThreadCount(sorted_idxs.size());
-  if (thread_count <= 1 || sorted_idxs.size() < thread_count * 2) {
-    for (size_t i = 1; i < sorted_idxs.size(); ++i) {
-      if (std::abs(CrossVal(xs, ys, anchor_idx, sorted_idxs[0], sorted_idxs[i])) > kKEps) {
-        return false;
-      }
+bool KonstantinovAGrahamSTL::CheckCollinearRange(
+    const std::vector<double> &xs,
+    const std::vector<double> &ys,
+    size_t anchor_idx,
+    const std::vector<size_t> &sorted_idxs,
+    size_t begin,
+    size_t end) {
+  for (size_t i = begin; i < end; ++i) {
+    if (std::abs(CrossVal(xs, ys, anchor_idx,
+                          sorted_idxs[0], sorted_idxs[i])) > kKEps) {
+      return false;
     }
-    return true;
   }
 
-  std::atomic<bool> result{true};
+  return true;
+}
+
+void KonstantinovAGrahamSTL::FillIndexRange(std::vector<size_t> &idxs,
+                                            size_t begin,
+                                            size_t end,
+                                            size_t anchor_idx) {
+  for (size_t i = begin; i < end; ++i) {
+    if (i < anchor_idx) {
+      idxs[i] = i;
+    } else if (i > anchor_idx) {
+      idxs[i - 1] = i;
+    }
+  }
+}
+
+void KonstantinovAGrahamSTL::FillIndicesParallel(std::vector<size_t> &idxs,
+                                                 size_t point_count,
+                                                 size_t anchor_idx,
+                                                 size_t thread_count) {
   std::vector<std::thread> workers;
   workers.reserve(thread_count);
 
-  const size_t block = (sorted_idxs.size() + thread_count - 1) / thread_count;
+  const size_t block_size = (point_count + thread_count - 1) / thread_count;
 
-  for (size_t t = 0; t < thread_count; ++t) {
-    const size_t begin = t * block;
-    const size_t end = std::min(sorted_idxs.size(), begin + block);
+  for (size_t thread_idx = 0; thread_idx < thread_count; ++thread_idx) {
+    const size_t begin = thread_idx * block_size;
+    const size_t end = std::min(point_count, begin + block_size);
 
     if (begin >= end) {
       continue;
     }
 
     workers.emplace_back([&, begin, end]() {
-      for (size_t i = std::max<size_t>(1, begin); i < end && result.load(); ++i) {
-        if (std::abs(CrossVal(xs, ys, anchor_idx, sorted_idxs[0], sorted_idxs[i])) > kKEps) {
-          result.store(false);
-          break;
-        }
+      FillIndexRange(idxs, begin, end, anchor_idx);
+    });
+  }
+
+  for (auto &worker : workers) {
+    worker.join();
+  }
+}
+
+bool KonstantinovAGrahamSTL::AllCollinearWithAnchor(
+    const std::vector<double> &xs,
+    const std::vector<double> &ys,
+    size_t anchor_idx,
+    const std::vector<size_t> &sorted_idxs) {
+  if (sorted_idxs.empty()) {
+    return true;
+  }
+
+  const size_t thread_count = GetThreadCount(sorted_idxs.size());
+
+  if (thread_count <= 1 || sorted_idxs.size() < (thread_count * 2)) {
+    return CheckCollinearRange(xs, ys, anchor_idx,
+                               sorted_idxs, 1, sorted_idxs.size());
+  }
+
+  std::atomic<bool> result{true};
+
+  std::vector<std::thread> workers;
+  workers.reserve(thread_count);
+
+  const size_t block_size =
+      (sorted_idxs.size() + thread_count - 1) / thread_count;
+
+  for (size_t thread_idx = 0; thread_idx < thread_count; ++thread_idx) {
+    const size_t begin = std::max<size_t>(1, thread_idx * block_size);
+    const size_t end =
+        std::min(sorted_idxs.size(), begin + block_size);
+
+    if (begin >= end) {
+      continue;
+    }
+
+    workers.emplace_back([&, begin, end]() {
+      if (!CheckCollinearRange(xs, ys, anchor_idx,
+                               sorted_idxs, begin, end)) {
+        result.store(false);
       }
     });
   }
