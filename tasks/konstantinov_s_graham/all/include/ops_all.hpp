@@ -8,7 +8,6 @@
 
 namespace konstantinov_s_graham {
 
-
 class KonstantinovAGrahamALL : public BaseTask {
  public:
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
@@ -33,14 +32,14 @@ class KonstantinovAGrahamALL : public BaseTask {
   static std::vector<size_t> CollectAndSortIndices(const std::vector<double> &xs, const std::vector<double> &ys,
                                                    size_t anchor_idx);
   static bool CheckCollinearRange(const std::vector<double> &xs, const std::vector<double> &ys, size_t anchor_idx,
-                           const std::vector<size_t> &sorted_idxs, size_t begin, size_t end);
+                                  const std::vector<size_t> &sorted_idxs, size_t begin, size_t end);
   static bool AllCollinearWithAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t anchor_idx,
                                      const std::vector<size_t> &sorted_idxs);
   static std::vector<std::pair<double, double>> BuildHullFromSorted(const std::vector<double> &xs,
                                                                     const std::vector<double> &ys, size_t anchor_idx,
                                                                     const std::vector<size_t> &sorted_idxs);
   static std::vector<std::pair<double, double>> BuildHullFromCoords(const std::vector<double> &xs_in,
-                                                             const std::vector<double> &ys_in);
+                                                                    const std::vector<double> &ys_in);
   void ScatterInput(size_t total_size, std::vector<double> &local_xs, std::vector<double> &local_ys);
   void GatherLocalHull(const std::vector<std::pair<double, double>> &local_hull, std::vector<double> &gathered_xs,
                        std::vector<double> &gathered_ys);

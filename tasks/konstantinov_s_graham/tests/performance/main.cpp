@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <mpi.h>
+
 #include <cstddef>
 #include <tuple>
 #include <vector>

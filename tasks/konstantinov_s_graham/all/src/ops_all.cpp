@@ -1,7 +1,6 @@
 #include "konstantinov_s_graham/all/include/ops_all.hpp"
 
 #include <mpi.h>
-
 #include <tbb/blocked_range.h>
 #include <tbb/global_control.h>
 #include <tbb/parallel_for.h>
@@ -89,23 +88,18 @@ size_t KonstantinovAGrahamALL::FindAnchorIndex(const std::vector<double> &xs, co
     return 0;
   }
 
-  return tbb::parallel_reduce(
-      tbb::blocked_range<size_t>(1, xs.size()), size_t{0},
-      [&xs, &ys](const tbb::blocked_range<size_t> &range, size_t local_idx) {
-        for (size_t i = range.begin(); i < range.end(); ++i) {
-          if (IsLowerAnchor(xs, ys, i, local_idx)) {
-            local_idx = i;
-          }
-        }
-        return local_idx;
-      },
-      [&xs, &ys](size_t left, size_t right) {
-        return IsLowerAnchor(xs, ys, left, right) ? left : right;
-      });
+  return tbb::parallel_reduce(tbb::blocked_range<size_t>(1, xs.size()), size_t{0},
+                              [&xs, &ys](const tbb::blocked_range<size_t> &range, size_t local_idx) {
+    for (size_t i = range.begin(); i < range.end(); ++i) {
+      if (IsLowerAnchor(xs, ys, i, local_idx)) {
+        local_idx = i;
+      }
+    }
+    return local_idx;
+  }, [&xs, &ys](size_t left, size_t right) { return IsLowerAnchor(xs, ys, left, right) ? left : right; });
 }
 
-double KonstantinovAGrahamALL::Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i,
-                                     size_t j) {
+double KonstantinovAGrahamALL::Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j) {
   const double dx = xs[j] - xs[i];
   const double dy = ys[j] - ys[i];
   return (dx * dx) + (dy * dy);
@@ -151,9 +145,7 @@ void KonstantinovAGrahamALL::FillIndicesParallel(std::vector<size_t> &idxs, size
       continue;
     }
 
-    workers.emplace_back([&, begin, end]() {
-      FillIndexRange(idxs, begin, end, anchor_idx);
-    });
+    workers.emplace_back([&, begin, end]() { FillIndexRange(idxs, begin, end, anchor_idx); });
   }
 
   for (auto &worker : workers) {
@@ -162,8 +154,7 @@ void KonstantinovAGrahamALL::FillIndicesParallel(std::vector<size_t> &idxs, size
 }
 
 std::vector<size_t> KonstantinovAGrahamALL::CollectAndSortIndices(const std::vector<double> &xs,
-                                                                  const std::vector<double> &ys,
-                                                                  size_t anchor_idx) {
+                                                                  const std::vector<double> &ys, size_t anchor_idx) {
   std::vector<size_t> idxs(xs.size() - 1);
 
   FillIndicesParallel(idxs, xs.size(), anchor_idx);
