@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <ranges>
 #include <utility>
@@ -71,7 +72,7 @@ void KonstantinovAGrahamALL::RemoveDuplicates(std::vector<double> &xs, std::vect
 }
 
 bool KonstantinovAGrahamALL::IsLowerAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t lhs,
-                                           size_t rhs) const {
+                                           size_t rhs) {
   if (ys[lhs] < ys[rhs] - kKEps) {
     return true;
   }
@@ -99,15 +100,14 @@ size_t KonstantinovAGrahamALL::FindAnchorIndex(const std::vector<double> &xs, co
   }, [&xs, &ys, this](size_t left, size_t right) { return IsLowerAnchor(xs, ys, left, right) ? left : right; });
 }
 
-double KonstantinovAGrahamALL::Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i,
-                                     size_t j) const {
+double KonstantinovAGrahamALL::Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j) {
   const double dx = xs[j] - xs[i];
   const double dy = ys[j] - ys[i];
   return (dx * dx) + (dy * dy);
 }
 
 double KonstantinovAGrahamALL::CrossVal(const std::vector<double> &xs, const std::vector<double> &ys, size_t i,
-                                        size_t j, size_t k) const {
+                                        size_t j, size_t k) {
   const double ax = xs[j] - xs[i];
   const double ay = ys[j] - ys[i];
   const double bx = xs[k] - xs[i];
@@ -115,8 +115,7 @@ double KonstantinovAGrahamALL::CrossVal(const std::vector<double> &xs, const std
   return (ax * by) - (ay * bx);
 }
 
-void KonstantinovAGrahamALL::FillIndexRange(std::vector<size_t> &idxs, size_t begin, size_t end,
-                                            size_t anchor_idx) const {
+void KonstantinovAGrahamALL::FillIndexRange(std::vector<size_t> &idxs, size_t begin, size_t end, size_t anchor_idx) {
   for (size_t i = begin; i < end; ++i) {
     if (i < anchor_idx) {
       idxs[i] = i;
@@ -176,7 +175,7 @@ std::vector<size_t> KonstantinovAGrahamALL::CollectAndSortIndices(const std::vec
 
 bool KonstantinovAGrahamALL::CheckCollinearRange(const std::vector<double> &xs, const std::vector<double> &ys,
                                                  size_t anchor_idx, const std::vector<size_t> &sorted_idxs,
-                                                 size_t begin, size_t end) const {
+                                                 size_t begin, size_t end) {
   for (size_t i = begin; i < end; ++i) {
     if (std::abs(CrossVal(xs, ys, anchor_idx, sorted_idxs[0], sorted_idxs[i])) > kKEps) {
       return false;
