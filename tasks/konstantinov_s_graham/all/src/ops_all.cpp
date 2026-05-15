@@ -257,8 +257,8 @@ std::vector<std::pair<double, double>> KonstantinovAGrahamALL::BuildHullFromSort
   return hull;
 }
 
-std::vector<std::pair<double, double>> KonstantinovAGrahamALL::BuildHullFromCoords(
-    const std::vector<double> &xs, const std::vector<double> &ys) {
+std::vector<std::pair<double, double>> KonstantinovAGrahamALL::BuildHullFromCoords(const std::vector<double> &xs,
+                                                                                   const std::vector<double> &ys) {
   std::vector<double> local_xs = xs;
   std::vector<double> local_ys = ys;
 
