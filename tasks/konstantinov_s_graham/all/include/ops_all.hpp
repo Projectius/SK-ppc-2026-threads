@@ -35,8 +35,8 @@ class KonstantinovAGrahamALL : public BaseTask {
   static void FillIndexRange(std::vector<size_t> &idxs, size_t begin, size_t end, size_t anchor_idx);
   static void FillIndicesParallel(std::vector<size_t> &idxs, size_t point_count, size_t anchor_idx);
 
-  [[nodiscard]] static std::vector<size_t> CollectAndSortIndices(const std::vector<double> &xs, const std::vector<double> &ys,
-                                                          size_t anchor_idx);
+  [[nodiscard]] static std::vector<size_t> CollectAndSortIndices(const std::vector<double> &xs,
+                                                                 const std::vector<double> &ys, size_t anchor_idx);
 
   [[nodiscard]] static bool CheckCollinearRange(const std::vector<double> &xs, const std::vector<double> &ys,
                                                 size_t anchor_idx, const std::vector<size_t> &sorted_idxs, size_t begin,
