@@ -22,27 +22,37 @@ class KonstantinovAGrahamALL : public BaseTask {
   int proc_num_{1};
   bool ValidationImpl() override;
   bool PreProcessingImpl() override;
-  static bool IsLowerAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t lhs, size_t rhs);
   static void RemoveDuplicates(std::vector<double> &xs, std::vector<double> &ys);
-  static size_t FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys);
-  static double Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j);
-  static double CrossVal(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j, size_t k);
-  static void FillIndexRange(std::vector<size_t> &idxs, size_t begin, size_t end, size_t anchor_idx);
-  static void FillIndicesParallel(std::vector<size_t> &idxs, size_t point_count, size_t anchor_idx);
-  static std::vector<size_t> CollectAndSortIndices(const std::vector<double> &xs, const std::vector<double> &ys,
-                                                   size_t anchor_idx);
-  static bool CheckCollinearRange(const std::vector<double> &xs, const std::vector<double> &ys, size_t anchor_idx,
-                                  const std::vector<size_t> &sorted_idxs, size_t begin, size_t end);
-  static bool AllCollinearWithAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t anchor_idx,
-                                     const std::vector<size_t> &sorted_idxs);
-  static std::vector<std::pair<double, double>> BuildHullFromSorted(const std::vector<double> &xs,
-                                                                    const std::vector<double> &ys, size_t anchor_idx,
-                                                                    const std::vector<size_t> &sorted_idxs);
-  static std::vector<std::pair<double, double>> BuildHullFromCoords(const std::vector<double> &xs_in,
-                                                                    const std::vector<double> &ys_in);
+
+  bool IsLowerAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t lhs, size_t rhs) const;
+  size_t FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys) const;
+
+  double Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j) const;
+  double CrossVal(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j, size_t k) const;
+
+  void FillIndexRange(std::vector<size_t> &idxs, size_t begin, size_t end, size_t anchor_idx) const;
+  void FillIndicesParallel(std::vector<size_t> &idxs, size_t point_count, size_t anchor_idx) const;
+
+  std::vector<size_t> CollectAndSortIndices(const std::vector<double> &xs, const std::vector<double> &ys,
+                                            size_t anchor_idx) const;
+
+  bool CheckCollinearRange(const std::vector<double> &xs, const std::vector<double> &ys, size_t anchor_idx,
+                           const std::vector<size_t> &sorted_idxs, size_t begin, size_t end) const;
+
+  bool AllCollinearWithAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t anchor_idx,
+                              const std::vector<size_t> &sorted_idxs) const;
+
+  std::vector<std::pair<double, double>> BuildHullFromSorted(const std::vector<double> &xs,
+                                                             const std::vector<double> &ys, size_t anchor_idx,
+                                                             const std::vector<size_t> &sorted_idxs) const;
+
+  std::vector<std::pair<double, double>> BuildHullFromCoords(const std::vector<double> &xs,
+                                                             const std::vector<double> &ys) const;
+
   void ScatterInput(size_t total_size, std::vector<double> &local_xs, std::vector<double> &local_ys);
   void GatherLocalHull(const std::vector<std::pair<double, double>> &local_hull, std::vector<double> &gathered_xs,
-                       std::vector<double> &gathered_ys);
+                       std::vector<double> &gathered_ys) const;
+
   void BroadcastOutput();
   bool RunImpl() override;
   bool PostProcessingImpl() override;
