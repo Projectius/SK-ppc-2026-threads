@@ -84,7 +84,7 @@ bool KonstantinovAGrahamALL::IsLowerAnchor(const std::vector<double> &xs, const 
   return false;
 }
 
-size_t KonstantinovAGrahamALL::FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys) const {
+size_t KonstantinovAGrahamALL::FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys) {
   if (xs.empty()) {
     return 0;
   }
@@ -125,8 +125,7 @@ void KonstantinovAGrahamALL::FillIndexRange(std::vector<size_t> &idxs, size_t be
   }
 }
 
-void KonstantinovAGrahamALL::FillIndicesParallel(std::vector<size_t> &idxs, size_t point_count,
-                                                 size_t anchor_idx) const {
+void KonstantinovAGrahamALL::FillIndicesParallel(std::vector<size_t> &idxs, size_t point_count, size_t anchor_idx) {
   const auto thread_count = static_cast<size_t>(ppc::util::GetNumThreads());
 
   if (thread_count <= 1 || point_count < (thread_count * 2)) {
@@ -186,7 +185,7 @@ bool KonstantinovAGrahamALL::CheckCollinearRange(const std::vector<double> &xs, 
 }
 
 bool KonstantinovAGrahamALL::AllCollinearWithAnchor(const std::vector<double> &xs, const std::vector<double> &ys,
-                                                    size_t anchor_idx, const std::vector<size_t> &sorted_idxs) const {
+                                                    size_t anchor_idx, const std::vector<size_t> &sorted_idxs) {
   if (sorted_idxs.size() < 2) {
     return true;
   }
@@ -222,7 +221,7 @@ bool KonstantinovAGrahamALL::AllCollinearWithAnchor(const std::vector<double> &x
 
 std::vector<std::pair<double, double>> KonstantinovAGrahamALL::BuildHullFromSorted(
     const std::vector<double> &xs, const std::vector<double> &ys, size_t anchor_idx,
-    const std::vector<size_t> &sorted_idxs) const {
+    const std::vector<size_t> &sorted_idxs) {
   std::vector<size_t> stack;
   stack.reserve(sorted_idxs.size() + 1);
   stack.push_back(anchor_idx);
@@ -306,7 +305,7 @@ void KonstantinovAGrahamALL::ScatterInput(size_t total_size, std::vector<double>
 
   size_t offset = 0;
   for (int rank = 0; rank < proc_num_; ++rank) {
-    const size_t amount = base + (static_cast<size_t>(rank) < remainder ? 1U : 0U);
+    const size_t amount = base + (std::cmp_less(rank, remainder) ? 1U : 0U);
     counts[rank] = static_cast<int>(amount);
     displs[rank] = static_cast<int>(offset);
     offset += amount;

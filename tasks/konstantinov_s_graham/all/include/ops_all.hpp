@@ -26,14 +26,14 @@ class KonstantinovAGrahamALL : public BaseTask {
 
   [[nodiscard]] static bool IsLowerAnchor(const std::vector<double> &xs, const std::vector<double> &ys, size_t lhs,
                                           size_t rhs);
-  [[nodiscard]] size_t FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys) const;
+  [[nodiscard]] static size_t FindAnchorIndex(const std::vector<double> &xs, const std::vector<double> &ys);
 
   [[nodiscard]] static double Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j);
   [[nodiscard]] static double CrossVal(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j,
                                        size_t k);
 
   static void FillIndexRange(std::vector<size_t> &idxs, size_t begin, size_t end, size_t anchor_idx);
-  void FillIndicesParallel(std::vector<size_t> &idxs, size_t point_count, size_t anchor_idx) const;
+  static void FillIndicesParallel(std::vector<size_t> &idxs, size_t point_count, size_t anchor_idx);
 
   [[nodiscard]] std::vector<size_t> CollectAndSortIndices(const std::vector<double> &xs, const std::vector<double> &ys,
                                                           size_t anchor_idx) const;
@@ -42,12 +42,12 @@ class KonstantinovAGrahamALL : public BaseTask {
                                                 size_t anchor_idx, const std::vector<size_t> &sorted_idxs, size_t begin,
                                                 size_t end);
 
-  [[nodiscard]] bool AllCollinearWithAnchor(const std::vector<double> &xs, const std::vector<double> &ys,
-                                            size_t anchor_idx, const std::vector<size_t> &sorted_idxs) const;
+  [[nodiscard]] static bool AllCollinearWithAnchor(const std::vector<double> &xs, const std::vector<double> &ys,
+                                                   size_t anchor_idx, const std::vector<size_t> &sorted_idxs);
 
-  [[nodiscard]] std::vector<std::pair<double, double>> BuildHullFromSorted(
+  [[nodiscard]] static std::vector<std::pair<double, double>> BuildHullFromSorted(
       const std::vector<double> &xs, const std::vector<double> &ys, size_t anchor_idx,
-      const std::vector<size_t> &sorted_idxs) const;
+      const std::vector<size_t> &sorted_idxs);
 
   [[nodiscard]] std::vector<std::pair<double, double>> BuildHullFromCoords(const std::vector<double> &xs,
                                                                            const std::vector<double> &ys) const;
