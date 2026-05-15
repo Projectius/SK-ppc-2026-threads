@@ -154,7 +154,7 @@ void KonstantinovAGrahamALL::FillIndicesParallel(std::vector<size_t> &idxs, size
 
 std::vector<size_t> KonstantinovAGrahamALL::CollectAndSortIndices(const std::vector<double> &xs,
                                                                   const std::vector<double> &ys,
-                                                                  size_t anchor_idx) const {
+                                                                  size_t anchor_idx){
   std::vector<size_t> idxs(xs.size() - 1);
 
   FillIndicesParallel(idxs, xs.size(), anchor_idx);
