@@ -90,14 +90,14 @@ size_t KonstantinovAGrahamALL::FindAnchorIndex(const std::vector<double> &xs, co
   }
 
   return tbb::parallel_reduce(tbb::blocked_range<size_t>(1, xs.size()), size_t{0},
-                              [&xs, &ys, this](const tbb::blocked_range<size_t> &range, size_t local_idx) {
+                              [&xs, &ys](const tbb::blocked_range<size_t> &range, size_t local_idx) {
     for (size_t i = range.begin(); i < range.end(); ++i) {
       if (IsLowerAnchor(xs, ys, i, local_idx)) {
         local_idx = i;
       }
     }
     return local_idx;
-  }, [&xs, &ys, this](size_t left, size_t right) { return IsLowerAnchor(xs, ys, left, right) ? left : right; });
+  }, [&xs, &ys](size_t left, size_t right) { return IsLowerAnchor(xs, ys, left, right) ? left : right; });
 }
 
 double KonstantinovAGrahamALL::Dist2(const std::vector<double> &xs, const std::vector<double> &ys, size_t i, size_t j) {
@@ -160,7 +160,7 @@ std::vector<size_t> KonstantinovAGrahamALL::CollectAndSortIndices(const std::vec
 
   FillIndicesParallel(idxs, xs.size(), anchor_idx);
 
-  tbb::parallel_sort(idxs.begin(), idxs.end(), [&xs, &ys, anchor_idx, this](size_t lhs, size_t rhs) {
+  tbb::parallel_sort(idxs.begin(), idxs.end(), [&xs, &ys, anchor_idx](size_t lhs, size_t rhs) {
     const double cross = CrossVal(xs, ys, anchor_idx, lhs, rhs);
 
     if (std::abs(cross) < kKEps) {
