@@ -49,8 +49,8 @@ class KonstantinovAGrahamALL : public BaseTask {
       const std::vector<double> &xs, const std::vector<double> &ys, size_t anchor_idx,
       const std::vector<size_t> &sorted_idxs);
 
-  [[nodiscard]] std::vector<std::pair<double, double>> BuildHullFromCoords(const std::vector<double> &xs,
-                                                                           const std::vector<double> &ys) const;
+  [[nodiscard]] static std::vector<std::pair<double, double>> BuildHullFromCoords(const std::vector<double> &xs,
+                                                                           const std::vector<double> &ys);
 
   void ScatterInput(size_t total_size, std::vector<double> &local_xs, std::vector<double> &local_ys);
   void GatherLocalHull(const std::vector<std::pair<double, double>> &local_hull, std::vector<double> &gathered_xs,
